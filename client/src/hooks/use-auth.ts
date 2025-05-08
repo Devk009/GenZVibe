@@ -70,7 +70,7 @@ export const AuthProvider = (props: { children: React.ReactNode }) => {
         body: JSON.stringify({ 
           username, 
           password,
-          remember: formData.remember
+          remember
         }),
         credentials: 'include',
       });

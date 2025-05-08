@@ -46,7 +46,7 @@ export default function Login() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-      await login(data.username, data.password, data.remember);
+      await login(data.username, data.password, data.remember || false);
       toast({
         title: "Welcome back!",
         description: "You've successfully logged in.",
