@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
   password: z.string().min(1, "Password is required"),
+  remember: z.boolean().default(false),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -45,7 +46,7 @@ export default function Login() {
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-      await login(data.username, data.password);
+      await login(data.username, data.password, data.remember);
       toast({
         title: "Welcome back!",
         description: "You've successfully logged in.",

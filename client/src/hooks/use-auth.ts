@@ -61,10 +61,9 @@ export const AuthProvider = (props: { children: React.ReactNode }) => {
   }, []);
 
   // Login function
-  const login = async (username: string, password: string) => {
+  const login = async (username: string, password: string, remember: boolean = false) => {
     setIsLoading(true);
     try {
-      const formData = form.getValues();
       const response = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
