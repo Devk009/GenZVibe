@@ -423,12 +423,60 @@ export class DatabaseStorage implements IStorage {
     
     // Create posts
     const postData = [
-      { userId: 5, caption: 'late night vibes with the crew 🌃✨ #nofilter', imageUrl: 'https://images.unsplash.com/photo-1517457373958-b7bdd4587205', location: 'Los Angeles, CA' },
-      { userId: 2, caption: 'digging through crates and found some gems 💿 vintage sounds hit different #vinylcollection', imageUrl: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba', location: 'Brooklyn, NY' },
-      { userId: 3, caption: 'finally finished my room makeover ✨🌿 feeling so much better in this space #aestheticvibes #plantmom', imageUrl: 'https://images.unsplash.com/photo-1616046229478-9901c5536a45', location: 'Austin, TX' },
-      { userId: 4, caption: 'sunset skating session with friends 🛹 best way to end the day', imageUrl: 'https://images.unsplash.com/photo-1520262494112-9fe481d36ec3', location: 'Miami, FL' },
-      { userId: 6, caption: 'morning coffee and creativity ☕️ working on something big!', imageUrl: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15', location: 'Seattle, WA' },
-      { userId: 1, caption: 'exploring the city today, found this amazing spot 🏙️', imageUrl: 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b', location: 'San Francisco, CA' }
+      { 
+        userId: 5, 
+        caption: 'late night vibes with the crew 🌃✨ #nofilter', 
+        postType: 'image',
+        mediaPath: 'https://images.unsplash.com/photo-1517457373958-b7bdd4587205', 
+        mediaType: 'image/jpeg',
+        location: 'Los Angeles, CA' 
+      },
+      { 
+        userId: 2, 
+        caption: 'digging through crates and found some gems 💿 vintage sounds hit different #vinylcollection', 
+        postType: 'image',
+        mediaPath: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba', 
+        mediaType: 'image/jpeg',
+        location: 'Brooklyn, NY' 
+      },
+      { 
+        userId: 3, 
+        caption: 'finally finished my room makeover ✨🌿 feeling so much better in this space #aestheticvibes #plantmom', 
+        postType: 'image',
+        mediaPath: 'https://images.unsplash.com/photo-1616046229478-9901c5536a45', 
+        mediaType: 'image/jpeg',
+        location: 'Austin, TX' 
+      },
+      { 
+        userId: 4, 
+        caption: 'sunset skating session with friends 🛹 best way to end the day', 
+        postType: 'image',
+        mediaPath: 'https://images.unsplash.com/photo-1520262494112-9fe481d36ec3', 
+        mediaType: 'image/jpeg',
+        location: 'Miami, FL' 
+      },
+      { 
+        userId: 6, 
+        caption: 'morning coffee and creativity ☕️ working on something big!', 
+        postType: 'image',
+        mediaPath: 'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15', 
+        mediaType: 'image/jpeg',
+        location: 'Seattle, WA' 
+      },
+      { 
+        userId: 1, 
+        caption: 'exploring the city today, found this amazing spot 🏙️', 
+        postType: 'image',
+        mediaPath: 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b', 
+        mediaType: 'image/jpeg',
+        location: 'San Francisco, CA' 
+      },
+      {
+        userId: 2,
+        caption: 'Just sharing my thoughts for today. What do you all think?',
+        postType: 'text',
+        location: 'Brooklyn, NY'
+      }
     ];
     
     for (const post of postData) {

@@ -1,26 +1,15 @@
 import { useState } from "react";
+import { formatTimestamp } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { likePost, unlikePost, formatTimestamp, formatNumber } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { 
-  Heart, 
-  MessageCircle, 
-  Share2, 
-  Bookmark, 
-  MoreHorizontal 
-} from "lucide-react";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
-import { useToast } from "@/hooks/use-toast";
-import { motion } from "framer-motion";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { Heart, MessageCircle, MoreHorizontal, MapPin, Bookmark } from "lucide-react";
 
 interface PostComment {
   id: number;
@@ -38,7 +27,9 @@ interface PostCardProps {
   post: {
     id: number;
     caption: string;
-    imageUrl: string;
+    postType: string; // 'text', 'image', or 'video'
+    mediaPath?: string; // Path to the media file
+    mediaType?: string; // MIME type of the media
     location?: string;
     createdAt: string;
     user: {
@@ -56,286 +47,288 @@ interface PostCardProps {
 }
 
 const PostCard = ({ post, onCommentAdded }: PostCardProps) => {
+  const [commentText, setCommentText] = useState("");
+  const [showComments, setShowComments] = useState(false);
+  const [comments, setComments] = useState<PostComment[]>([]);
+  const [isLiked, setIsLiked] = useState(post.hasLiked);
+  const [likesCount, setLikesCount] = useState(post.likes);
+  
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [newComment, setNewComment] = useState("");
-  const [isLiked, setIsLiked] = useState(post.hasLiked);
-  const [likeCount, setLikeCount] = useState(post.likes);
-  const [showComments, setShowComments] = useState(false);
-  const [comments, setComments] = useState<PostComment[]>([]);
-  const [isCommentsLoading, setIsCommentsLoading] = useState(false);
-
-  const likeMutation = useMutation({
+  
+  const getPostComments = async () => {
+    try {
+      const response = await fetch(`/api/posts/${post.id}/comments`);
+      const data = await response.json();
+      setComments(data);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load comments",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const toggleLikeMutation = useMutation({
     mutationFn: async () => {
-      if (isLiked) {
-        await unlikePost(post.id);
-        return false;
-      } else {
-        await likePost(post.id);
-        return true;
-      }
+      if (!user) throw new Error("You must be logged in to like posts");
+      
+      const url = `/api/posts/${post.id}/like`;
+      const method = isLiked ? "DELETE" : "POST";
+      
+      const response = await apiRequest(method, url);
+      return await response.json();
     },
-    onMutate: (variables) => {
-      // Optimistic update
+    onMutate: () => {
+      // Optimistically update UI
       setIsLiked(!isLiked);
-      setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+      setLikesCount(isLiked ? likesCount - 1 : likesCount + 1);
     },
     onError: (error) => {
-      // Revert on error
-      setIsLiked(post.hasLiked);
-      setLikeCount(post.likes);
+      // Revert changes on error
+      setIsLiked(!isLiked);
+      setLikesCount(isLiked ? likesCount + 1 : likesCount - 1);
+      
       toast({
         title: "Error",
-        description: "Failed to update like status",
+        description: error.message || "Failed to update like status",
         variant: "destructive",
       });
     },
-    onSuccess: (liked) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/posts/feed'] });
-    }
+    onSuccess: () => {
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/posts/feed"] });
+    },
   });
-
-  const commentMutation = useMutation({
-    mutationFn: async (content: string) => {
-      const response = await apiRequest('POST', `/api/posts/${post.id}/comments`, { content });
-      return response.json();
+  
+  const addCommentMutation = useMutation({
+    mutationFn: async () => {
+      if (!user) throw new Error("You must be logged in to comment");
+      if (!commentText.trim()) throw new Error("Comment cannot be empty");
+      
+      const response = await apiRequest("POST", `/api/posts/${post.id}/comments`, {
+        content: commentText,
+      });
+      
+      return await response.json();
     },
     onSuccess: (data) => {
-      setNewComment("");
-      if (comments.length > 0) {
-        setComments([...comments, data]);
+      setComments([...comments, data]);
+      setCommentText("");
+      
+      if (onCommentAdded) {
+        onCommentAdded();
       }
-      queryClient.invalidateQueries({ queryKey: ['/api/posts'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/posts/feed'] });
-      if (onCommentAdded) onCommentAdded();
+      
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/posts/feed"] });
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to add comment",
+        description: error.message || "Failed to add comment",
         variant: "destructive",
       });
-    }
+    },
   });
-
-  const handleLikeClick = () => {
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please log in to like posts",
-        variant: "destructive",
-      });
-      return;
-    }
-    likeMutation.mutate();
-  };
-
-  const handleCommentSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please log in to comment",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (newComment.trim()) {
-      commentMutation.mutate(newComment);
-    }
-  };
-
-  const loadComments = async () => {
-    if (!showComments && comments.length === 0) {
-      setIsCommentsLoading(true);
-      try {
-        const response = await fetch(`/api/posts/${post.id}/comments`);
-        if (response.ok) {
-          const data = await response.json();
-          setComments(data);
-        }
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load comments",
-          variant: "destructive",
-        });
-      } finally {
-        setIsCommentsLoading(false);
-      }
+  
+  const handleToggleComments = () => {
+    if (!showComments) {
+      getPostComments();
     }
     setShowComments(!showComments);
   };
-
+  
+  const handleToggleLike = () => {
+    toggleLikeMutation.mutate();
+  };
+  
+  const handleAddComment = (e: React.FormEvent) => {
+    e.preventDefault();
+    addCommentMutation.mutate();
+  };
+  
+  // Helper to render the media content based on post type
+  const renderMediaContent = () => {
+    const mediaUrl = post.mediaPath?.startsWith('http') 
+      ? post.mediaPath 
+      : `/media/${post.mediaPath?.split('/').pop()}`;
+    
+    switch (post.postType) {
+      case 'image':
+        return (
+          <img
+            src={mediaUrl}
+            alt={post.caption}
+            className="w-full h-auto rounded-sm"
+          />
+        );
+      case 'video':
+        return (
+          <video
+            src={mediaUrl}
+            controls
+            className="w-full h-auto rounded-sm"
+          />
+        );
+      case 'text':
+      default:
+        return (
+          <div className="bg-muted p-6 text-lg font-medium">
+            {post.caption}
+          </div>
+        );
+    }
+  };
+  
   return (
-    <div className="bg-white dark:bg-surface-dark rounded-xl overflow-hidden shadow-sm mb-6 transition-all hover:shadow-md">
-      <div className="p-4 flex items-center justify-between">
+    <div className="border rounded-md bg-background overflow-hidden mb-4">
+      {/* Post Header */}
+      <div className="flex items-center justify-between p-4">
         <div className="flex items-center space-x-3">
-          <Avatar>
-            <AvatarImage src={post.user.avatarUrl} />
-            <AvatarFallback>{post.user.username.charAt(0).toUpperCase()}</AvatarFallback>
+          <Avatar className="h-9 w-9">
+            <AvatarImage src={post.user.avatarUrl} alt={post.user.username} />
+            <AvatarFallback>
+              {post.user.displayName?.[0] || post.user.username[0]}
+            </AvatarFallback>
           </Avatar>
           <div>
-            <h3 className="font-medium text-sm">{post.user.username}</h3>
-            {post.location && (
-              <p className="text-xs text-gray-500 dark:text-gray-400">{post.location}</p>
-            )}
+            <div className="font-semibold text-sm">
+              {post.user.displayName || post.user.username}
+            </div>
+            <div className="text-xs text-muted-foreground flex items-center">
+              {post.location && (
+                <>
+                  <MapPin size={12} className="mr-1" />
+                  {post.location}
+                </>
+              )}
+            </div>
           </div>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {user && user.id === post.user.id && (
-              <DropdownMenuItem>Delete Post</DropdownMenuItem>
-            )}
-            <DropdownMenuItem>Report</DropdownMenuItem>
-            <DropdownMenuItem>Share</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button variant="ghost" size="icon" className="h-8 w-8">
+          <MoreHorizontal className="h-5 w-5" />
+        </Button>
       </div>
       
-      <div className="relative bg-gray-100 dark:bg-gray-800">
-        {post.type === 'text' ? (
-          <div className="p-6 min-h-[200px] flex items-center justify-center">
-            <p className="text-lg">{post.caption}</p>
-          </div>
-        ) : post.type === 'image' ? (
-          <div className="aspect-square">
-            <img 
-              src={post.mediaUrl} 
-              alt={`Post by ${post.user.username}`} 
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-          </div>
-        ) : post.type === 'video' ? (
-          <div className="aspect-video">
-            <video 
-              src={post.mediaUrl} 
-              controls 
-              className="w-full h-full"
-              preload="metadata"
-            />
-          </div>
-        ) : null}
-      </div>
+      {/* Post Content - conditionally render based on type */}
+      {post.postType !== 'text' && renderMediaContent()}
       
-      <div className="p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <motion.button
-              className={`flex items-center justify-center transition-transform hover:scale-110 ${isLiked ? 'text-secondary' : ''}`}
-              onClick={handleLikeClick}
-              whileTap={{ scale: 0.9 }}
-              disabled={likeMutation.isPending}
+      {/* Post Actions */}
+      <div className="p-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex space-x-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-9 w-9 ${isLiked ? "text-red-500" : ""}`}
+              onClick={handleToggleLike}
+              disabled={toggleLikeMutation.isPending}
             >
-              <Heart className={`h-6 w-6 ${isLiked ? 'fill-current' : ''}`} />
-            </motion.button>
-            <motion.button
-              className="flex items-center justify-center transition-transform hover:scale-110"
-              onClick={loadComments}
-              whileTap={{ scale: 0.9 }}
+              <Heart
+                className={`h-6 w-6 ${isLiked ? "fill-current" : ""}`}
+              />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={handleToggleComments}
             >
               <MessageCircle className="h-6 w-6" />
-            </motion.button>
-            <motion.button
-              className="flex items-center justify-center transition-transform hover:scale-110"
-              whileTap={{ scale: 0.9 }}
-              onClick={() => {
-                toast({
-                  title: "Coming Soon",
-                  description: "Sharing feature will be available soon!",
-                });
-              }}
-            >
-              <Share2 className="h-6 w-6" />
-            </motion.button>
+            </Button>
           </div>
-          <motion.button
-            className="flex items-center justify-center transition-transform hover:scale-110"
-            whileTap={{ scale: 0.9 }}
-            onClick={() => {
-              toast({
-                title: "Coming Soon",
-                description: "Bookmark feature will be available soon!",
-              });
-            }}
-          >
+          <Button variant="ghost" size="icon" className="h-9 w-9">
             <Bookmark className="h-6 w-6" />
-          </motion.button>
+          </Button>
         </div>
         
-        <div>
-          <p className="text-sm font-medium">{formatNumber(likeCount)} likes</p>
-          <div className="mt-1">
-            <p className="text-sm">
-              <span className="font-semibold">{post.user.username}</span>{" "}
-              <span>{post.caption}</span>
-            </p>
+        {/* Likes count */}
+        <div className="font-semibold text-sm mb-1">
+          {likesCount} {likesCount === 1 ? "like" : "likes"}
+        </div>
+        
+        {/* Only show caption separately for non-text posts */}
+        {post.postType !== 'text' && (
+          <div className="mb-1">
+            <span className="font-semibold text-sm mr-2">
+              {post.user.username}
+            </span>
+            <span className="text-sm">{post.caption}</span>
           </div>
+        )}
+        
+        {/* Post date */}
+        <div className="text-xs text-muted-foreground mt-1">
+          {formatTimestamp(new Date(post.createdAt))}
+        </div>
+      </div>
+      
+      {/* Comments section */}
+      {showComments && (
+        <div className="px-4 pb-2">
+          <Separator className="my-2" />
           
-          {post.comments > 0 && (
-            <button 
-              className="text-gray-500 dark:text-gray-400 text-sm mt-1"
-              onClick={loadComments}
-            >
-              View all {post.comments} comments
-            </button>
-          )}
-          
-          {showComments && (
-            <div className="mt-2 space-y-2">
-              {isCommentsLoading ? (
-                <p className="text-sm text-gray-500">Loading comments...</p>
-              ) : (
-                comments.map((comment) => (
-                  <div key={comment.id} className="flex items-start space-x-2">
-                    <p className="text-sm">
-                      <span className="font-semibold">{comment.user.username}</span>{" "}
+          {comments.length > 0 ? (
+            <div className="space-y-2 mb-3 max-h-40 overflow-y-auto">
+              {comments.map((comment) => (
+                <div key={comment.id} className="flex items-start space-x-2">
+                  <Avatar className="h-6 w-6">
+                    <AvatarImage
+                      src={comment.user.avatarUrl}
+                      alt={comment.user.username}
+                    />
+                    <AvatarFallback>
+                      {comment.user.displayName?.[0] || comment.user.username[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="text-sm">
+                      <span className="font-semibold mr-2">
+                        {comment.user.username}
+                      </span>
                       {comment.content}
-                    </p>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatTimestamp(new Date(comment.createdAt))}
+                    </div>
                   </div>
-                ))
-              )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground my-2">
+              No comments yet. Be the first to comment!
             </div>
           )}
           
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            {formatTimestamp(post.createdAt)}
-          </p>
+          {/* Add comment form */}
+          <form onSubmit={handleAddComment} className="flex items-center">
+            <Textarea
+              placeholder="Add a comment..."
+              className="min-h-0 resize-none text-sm py-2"
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              rows={1}
+            />
+            <Button
+              type="submit"
+              variant="ghost"
+              className="text-primary font-semibold ml-2"
+              disabled={
+                !commentText.trim() || addCommentMutation.isPending
+              }
+            >
+              Post
+            </Button>
+          </form>
         </div>
-        
-        <form 
-          className="pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center"
-          onSubmit={handleCommentSubmit}
-        >
-          <Avatar className="h-8 w-8 mr-3">
-            <AvatarImage src={user?.avatarUrl} />
-            <AvatarFallback>{user?.username?.charAt(0).toUpperCase() || "G"}</AvatarFallback>
-          </Avatar>
-          <Input
-            type="text"
-            placeholder="Add a comment..."
-            className="flex-1 bg-transparent text-sm border-0 focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-          />
-          <Button 
-            type="submit" 
-            variant="ghost" 
-            className="text-primary font-medium text-sm"
-            disabled={!newComment.trim() || commentMutation.isPending}
-          >
-            Post
-          </Button>
-        </form>
-      </div>
+      )}
     </div>
   );
 };
