@@ -200,13 +200,30 @@ const PostCard = ({ post, onCommentAdded }: PostCardProps) => {
         </DropdownMenu>
       </div>
       
-      <div className="relative aspect-square bg-gray-100 dark:bg-gray-800">
-        <img 
-          src={post.imageUrl} 
-          alt={`Post by ${post.user.username}`} 
-          className="w-full h-full object-cover"
-          loading="lazy"
-        />
+      <div className="relative bg-gray-100 dark:bg-gray-800">
+        {post.type === 'text' ? (
+          <div className="p-6 min-h-[200px] flex items-center justify-center">
+            <p className="text-lg">{post.caption}</p>
+          </div>
+        ) : post.type === 'image' ? (
+          <div className="aspect-square">
+            <img 
+              src={post.mediaUrl} 
+              alt={`Post by ${post.user.username}`} 
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          </div>
+        ) : post.type === 'video' ? (
+          <div className="aspect-video">
+            <video 
+              src={post.mediaUrl} 
+              controls 
+              className="w-full h-full"
+              preload="metadata"
+            />
+          </div>
+        ) : null}
       </div>
       
       <div className="p-4 space-y-3">

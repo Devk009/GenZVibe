@@ -102,7 +102,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let mediaUrl;
       if (req.file) {
-        const filename = `${Date.now()}-${req.file.originalname}`;
+        const filename = `posts/${currentUser.id}/${Date.now()}-${req.file.originalname}`;
         await objectStorage.upload(filename, req.file.buffer);
         mediaUrl = await objectStorage.getSignedUrl(filename);
       }
@@ -112,12 +112,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         caption,
         location,
         type,
-        ...(mediaUrl && { mediaUrl })
+        mediaUrl: mediaUrl || null
       };
 
       const parsedData = insertPostSchema.parse(postData);
       const post = await storage.createPost(parsedData);
-      res.status(201).json(post);
+
+      // Get user data to return with post
+      const user = await storage.getUser(currentUser.id);
+      const { password, ...userWithoutPassword } = user;
+
+      res.status(201).json({
+        ...post,
+        user: userWithoutPassword,
+        likes: 0,
+        comments: 0,
+        hasLiked: false
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
