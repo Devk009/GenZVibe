@@ -136,6 +136,10 @@ export default function Login() {
                 )}
               />
               
+              <div className="flex items-center space-x-2 mb-4">
+                <Checkbox id="remember" {...form.register('remember')} />
+                <Label htmlFor="remember" className="text-sm">Remember me</Label>
+              </div>
               <Button 
                 type="submit" 
                 className="w-full bg-gradient-to-r from-primary to-secondary text-white"
