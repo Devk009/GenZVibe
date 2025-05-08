@@ -3,61 +3,11 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import { insertUserSchema, insertPostSchema, insertCommentSchema } from "@shared/schema";
-import session from "express-session";
-import MemoryStore from "memorystore";
-import passport from "passport";
-import { Strategy as LocalStrategy } from "passport-local";
-
-const SessionStore = MemoryStore(session);
+import { setupAuth } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Configure session
-  app.use(
-    session({
-      secret: process.env.SESSION_SECRET || "vibe-secret-key",
-      resave: false,
-      saveUninitialized: false,
-      cookie: { secure: process.env.NODE_ENV === "production", maxAge: 86400000 }, // 24 hours
-      store: new SessionStore({
-        checkPeriod: 86400000, // 24 hours
-      }),
-    })
-  );
-
-  // Configure passport
-  app.use(passport.initialize());
-  app.use(passport.session());
-
-  // Configure passport local strategy
-  passport.use(
-    new LocalStrategy(async (username, password, done) => {
-      try {
-        const user = await storage.getUserByUsername(username);
-        if (!user) {
-          return done(null, false, { message: "Incorrect username" });
-        }
-        if (user.password !== password) {
-          return done(null, false, { message: "Incorrect password" });
-        }
-        return done(null, user);
-      } catch (err) {
-        return done(err);
-      }
-    })
-  );
-
-  passport.serializeUser((user: any, done) => {
-    done(null, user.id);
-  });
-
-  passport.deserializeUser(async (id: number, done) => {
-    try {
-      const user = await storage.getUser(id);
-      done(null, user);
-    } catch (err) {
-      done(err);
-    }
-  });
+  // Setup authentication routes and middleware
+  setupAuth(app);
 
   // Authentication middleware
   const isAuthenticated = (req: Request, res: Response, next: any) => {
@@ -67,54 +17,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(401).json({ message: "Unauthorized" });
   };
 
-  // Auth routes
-  app.post("/api/auth/register", async (req, res) => {
-    try {
-      const parsedData = insertUserSchema.parse(req.body);
-      const existingUser = await storage.getUserByUsername(parsedData.username);
-      
-      if (existingUser) {
-        return res.status(400).json({ message: "Username already exists" });
-      }
-      
-      const user = await storage.createUser(parsedData);
-      const { password, ...userWithoutPassword } = user;
-      
-      req.login(user, (err) => {
-        if (err) {
-          return res.status(500).json({ message: "Error during login after registration" });
-        }
-        return res.status(201).json(userWithoutPassword);
-      });
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Error registering user" });
-    }
-  });
-
-  app.post("/api/auth/login", passport.authenticate("local"), (req, res) => {
-    const { password, ...userWithoutPassword } = req.user as any;
-    res.status(200).json(userWithoutPassword);
-  });
-
-  app.post("/api/auth/logout", (req, res) => {
-    req.logout(function(err) {
-      if (err) {
-        return res.status(500).json({ message: "Error during logout" });
-      }
-      res.status(200).json({ message: "Logged out successfully" });
-    });
-  });
-
-  app.get("/api/auth/current", (req, res) => {
-    if (!req.user) {
-      return res.status(200).json(null);
-    }
-    const { password, ...userWithoutPassword } = req.user as any;
-    res.status(200).json(userWithoutPassword);
-  });
+  // Auth routes are handled by setupAuth(app)
 
   // User routes
   app.get("/api/users/:id", async (req, res) => {
@@ -208,8 +111,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const { password, ...userWithoutPassword } = user;
         
-        const likes = await storage.getLikesByPost(post.postId);
-        const comments = await storage.getCommentsByPost(post.postId);
+        const likes = await storage.getLikesByPost(post.id);
+        const comments = await storage.getCommentsByPost(post.id);
         
         let hasLiked = false;
         if (req.isAuthenticated()) {

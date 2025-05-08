@@ -8,6 +8,8 @@ import {
   type Story, type InsertStory
 } from "@shared/schema";
 import { subDays, addHours } from "date-fns";
+import session from 'express-session';
+import { sessionStore } from './session-store';
 
 export interface IStorage {
   // User operations
@@ -49,6 +51,9 @@ export interface IStorage {
   getActiveStories(): Promise<Story[]>;
   getUserStories(userId: number): Promise<Story[]>;
   
+  // Session store
+  sessionStore: session.Store;
+  
   // Seed initial data
   seedInitialData(): Promise<void>;
 }
@@ -68,6 +73,8 @@ export class MemStorage implements IStorage {
   private followIdCounter: number;
   private storyIdCounter: number;
   
+  sessionStore: session.Store;
+
   constructor() {
     this.users = new Map();
     this.posts = new Map();
@@ -82,6 +89,9 @@ export class MemStorage implements IStorage {
     this.commentIdCounter = 1;
     this.followIdCounter = 1;
     this.storyIdCounter = 1;
+    
+    // Use the imported session store
+    this.sessionStore = sessionStore;
   }
   
   // User operations
