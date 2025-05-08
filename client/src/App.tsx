@@ -29,13 +29,25 @@ function Router() {
   );
 }
 
+import { useState, useEffect } from "react";
+import SplashScreen from "@/components/splash-screen";
+
 function App() {
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <ThemeProvider defaultTheme="dark" storageKey="vibe-theme">
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
-          <Router />
+          {showSplash ? <SplashScreen /> : <Router />}
         </TooltipProvider>
       </AuthProvider>
     </ThemeProvider>
