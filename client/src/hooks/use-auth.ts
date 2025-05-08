@@ -45,7 +45,7 @@ export const AuthProvider = (props: { children: React.ReactNode }) => {
   React.useEffect(() => {
     const fetchUser = async () => {
       try {
-        const response = await fetch('/api/auth/current');
+        const response = await fetch('/api/user');
         if (response.ok) {
           const data = await response.json();
           setUser(data);
@@ -64,7 +64,7 @@ export const AuthProvider = (props: { children: React.ReactNode }) => {
   const login = async (username: string, password: string) => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
@@ -95,7 +95,7 @@ export const AuthProvider = (props: { children: React.ReactNode }) => {
   const register = async (username: string, password: string) => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/auth/register', {
+      const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
@@ -125,7 +125,7 @@ export const AuthProvider = (props: { children: React.ReactNode }) => {
   // Logout function
   const logout = async () => {
     try {
-      const response = await fetch('/api/auth/logout', {
+      const response = await fetch('/api/logout', {
         method: 'POST',
         credentials: 'include',
       });
