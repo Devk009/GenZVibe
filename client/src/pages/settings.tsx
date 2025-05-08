@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
@@ -31,13 +31,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { useTheme } from "@/components/theme-provider";
-import { Sun, Moon, LogOut } from "lucide-react";
+import { Sun, Moon, LogOut, Upload, Camera } from "lucide-react";
 
 const profileFormSchema = z.object({
   displayName: z.string().optional(),
   bio: z.string().max(160, "Bio must be 160 characters or less").optional(),
   location: z.string().optional(),
-  avatarUrl: z.string().url("Please enter a valid URL").optional(),
+  // We will handle avatar file uploads separately, not through the form schema
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;

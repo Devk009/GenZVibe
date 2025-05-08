@@ -7,6 +7,7 @@ import { setupAuth } from "./auth";
 import path from "path";
 import multer from "multer";
 import fs from "fs";
+import { upload, getFileUrl } from "./upload";
 
 // Ensure upload directories exist
 const createUploadDirs = () => {
@@ -134,7 +135,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/users/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/users/:id", isAuthenticated, upload.single("avatar"), async (req, res) => {
     try {
       const userId = parseInt(req.params.id);
       const currentUser = req.user as any;
@@ -143,7 +144,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You can only update your own profile" });
       }
       
-      const updatedUser = await dbStorage.updateUser(userId, req.body);
+      // Handle file upload for avatar
+      let userData = { ...req.body };
+      
+      // If file was uploaded, add the file path to the userData
+      if (req.file) {
+        userData.avatarUrl = getFileUrl(req.file.path);
+      }
+      
+      const updatedUser = await dbStorage.updateUser(userId, userData);
       if (!updatedUser) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -151,6 +160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { password, ...userWithoutPassword } = updatedUser;
       res.status(200).json(userWithoutPassword);
     } catch (error) {
+      console.error("Profile update error:", error);
       res.status(500).json({ message: "Error updating user" });
     }
   });
