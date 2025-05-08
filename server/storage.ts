@@ -127,12 +127,17 @@ export class DatabaseStorage implements IStorage {
   
   // Post operations
   async createPost(insertPost: InsertPost): Promise<Post> {
+    // Handle both old and new schema
+    const postData: any = {
+      ...insertPost,
+      location: insertPost.location || null,
+      // For backward compatibility with old schema
+      image_url: insertPost.mediaPath || null
+    };
+
     const [post] = await db
       .insert(posts)
-      .values({
-        ...insertPost,
-        location: insertPost.location || null
-      })
+      .values(postData)
       .returning();
     return post;
   }
