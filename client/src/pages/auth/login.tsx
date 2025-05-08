@@ -40,13 +40,14 @@ export default function Login() {
     defaultValues: {
       username: "",
       password: "",
+      remember: false,
     },
   });
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     try {
-      await login(data.username, data.password, data.remember || false);
+      await login(data.username, data.password, data.remember);
       toast({
         title: "Welcome back!",
         description: "You've successfully logged in.",
@@ -93,7 +94,7 @@ export default function Login() {
           transition={{ delay: 0.3, duration: 0.5 }}
         >
           <h2 className="text-2xl font-semibold mb-6">Login</h2>
-          
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
@@ -109,7 +110,7 @@ export default function Login() {
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="password"
@@ -138,7 +139,7 @@ export default function Login() {
                   </FormItem>
                 )}
               />
-              
+
               <div className="flex items-center space-x-2 mb-4">
                 <Checkbox id="remember" {...form.register('remember')} />
                 <Label htmlFor="remember" className="text-sm">Remember me</Label>
@@ -152,7 +153,7 @@ export default function Login() {
               </Button>
             </form>
           </Form>
-          
+
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Don't have an account?{" "}
@@ -162,7 +163,7 @@ export default function Login() {
             </p>
           </div>
         </motion.div>
-        
+
         <div className="text-center text-xs text-gray-500 dark:text-gray-400 mt-8">
           <p>By continuing, you agree to Vibe's Terms of Service and Privacy Policy.</p>
         </div>
