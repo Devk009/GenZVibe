@@ -61,9 +61,20 @@ export default function Settings() {
       displayName: user?.displayName || "",
       bio: user?.bio || "",
       location: user?.location || "",
-      avatarUrl: user?.avatarUrl || "",
     },
   });
+
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatarUrl || null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Clean up URI on unmount
+  useEffect(() => {
+    return () => {
+      if (avatarPreview && avatarPreview.startsWith('blob:')) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+    };
+  }, [avatarPreview]);
 
   useEffect(() => {
     if (user) {
@@ -71,8 +82,8 @@ export default function Settings() {
         displayName: user.displayName || "",
         bio: user.bio || "",
         location: user.location || "",
-        avatarUrl: user.avatarUrl || "",
       });
+      setAvatarPreview(user.avatarUrl || null);
     }
   }, [user, form]);
 
@@ -81,11 +92,48 @@ export default function Settings() {
     
     setIsSaving(true);
     try {
-      await updateProfile(data);
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been successfully updated.",
-      });
+      // Create FormData if we have an avatar file to upload
+      if (avatarFile) {
+        const formData = new FormData();
+        formData.append('avatar', avatarFile);
+        
+        // Add the form data fields
+        Object.entries(data).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            formData.append(key, value);
+          }
+        });
+        
+        // Send the update request with FormData
+        const response = await fetch(`/api/users/${user.id}`, {
+          method: 'PATCH',
+          body: formData,
+          credentials: 'include',
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to update profile');
+        }
+        
+        const updatedUser = await response.json();
+        
+        // Clean up the object URL
+        if (avatarPreview && avatarPreview.startsWith('blob:')) {
+          URL.revokeObjectURL(avatarPreview);
+        }
+        
+        toast({
+          title: "Profile updated",
+          description: "Your profile has been successfully updated.",
+        });
+      } else {
+        // If no avatar file, just update the profile with the regular data
+        await updateProfile(data);
+        toast({
+          title: "Profile updated",
+          description: "Your profile has been successfully updated.",
+        });
+      }
     } catch (error) {
       console.error("Profile update error:", error);
       toast({
@@ -95,6 +143,7 @@ export default function Settings() {
       });
     } finally {
       setIsSaving(false);
+      setAvatarFile(null);
     }
   };
 
@@ -144,14 +193,36 @@ export default function Settings() {
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                       <div className="flex items-center gap-4">
-                        <Avatar className="h-16 w-16">
-                          <AvatarImage src={form.watch("avatarUrl") || user.avatarUrl} />
-                          <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
-                        </Avatar>
+                        <div className="relative group">
+                          <Avatar className="h-16 w-16">
+                            <AvatarImage src={avatarPreview || user?.avatarUrl} />
+                            <AvatarFallback>{user.username.charAt(0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div 
+                            className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            <Camera className="h-6 w-6 text-white" />
+                          </div>
+                          <input 
+                            type="file" 
+                            ref={fileInputRef}
+                            className="hidden" 
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                setAvatarFile(file);
+                                const previewUrl = URL.createObjectURL(file);
+                                setAvatarPreview(previewUrl);
+                              }
+                            }}
+                          />
+                        </div>
                         <div className="space-y-1">
                           <h3 className="font-medium">{user.username}</h3>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Update your photo using the Avatar URL field below
+                            Click on the avatar to upload a new profile picture
                           </p>
                         </div>
                       </div>
@@ -208,22 +279,7 @@ export default function Settings() {
                         )}
                       />
                       
-                      <FormField
-                        control={form.control}
-                        name="avatarUrl"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Avatar URL</FormLabel>
-                            <FormControl>
-                              <Input placeholder="https://example.com/avatar.jpg" {...field} />
-                            </FormControl>
-                            <FormDescription>
-                              Paste a URL to your profile picture
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+
                       
                       <Button 
                         type="submit" 

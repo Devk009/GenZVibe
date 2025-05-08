@@ -7,7 +7,7 @@ import { setupAuth } from "./auth";
 import path from "path";
 import multer from "multer";
 import fs from "fs";
-import { upload, getFileUrl } from "./upload";
+import { getFileUrl, upload as fileUpload } from "./upload";
 
 // Ensure upload directories exist
 const createUploadDirs = () => {
