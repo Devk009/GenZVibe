@@ -53,7 +53,7 @@ export function setupAuth(app: Express) {
     saveUninitialized: false,
     store: sessionStore,
     cookie: {
-      maxAge: req.body.remember ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000, // 30 days if remember me, else 24 hours
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours by default
     }
   };
 
