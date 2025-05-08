@@ -53,7 +53,7 @@ export function setupAuth(app: Express) {
     saveUninitialized: false,
     store: sessionStore,
     cookie: {
-      maxAge: req.body.remember ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000, // 30 days if remember me, else 24 hours
+      maxAge: 24 * 60 * 60 * 1000, // Default to 24 hours
     }
   };
 
@@ -115,6 +115,10 @@ export function setupAuth(app: Express) {
       if (err) return next(err);
       if (!user) return res.status(401).json({ message: 'Invalid username or password' });
       
+      if (req.body.remember) {
+        req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+      }
+
       req.login(user, (err) => {
         if (err) return next(err);
         // Return without password
