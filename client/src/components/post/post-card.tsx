@@ -157,7 +157,7 @@ const PostCard = ({ post, onCommentAdded }: PostCardProps) => {
   const renderMediaContent = () => {
     const mediaUrl = post.mediaPath?.startsWith('http') 
       ? post.mediaPath 
-      : post.mediaPath ? `/media/${post.mediaPath.split('/').pop()}` : null;
+      : post.mediaPath ? `/uploads/images/${post.mediaPath.split('/').pop()}` : null;
     
     switch (post.postType) {
       case 'image':

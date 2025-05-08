@@ -55,7 +55,7 @@ const BottomNav = () => {
             {item.name === "Profile" ? (
               <div className="relative">
                 <Avatar className="w-7 h-7">
-                  <AvatarImage src={user?.avatarUrl?.startsWith('http') ? user.avatarUrl : user?.avatarUrl ? `/media/${user.avatarUrl.split('/').pop()}` : null} />
+                  <AvatarImage src={user?.avatarUrl?.startsWith('http') ? user.avatarUrl : user?.avatarUrl ? `/uploads/images/${user.avatarUrl.split('/').pop()}` : null} />
                   <AvatarFallback>{user?.username?.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
               </div>

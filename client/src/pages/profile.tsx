@@ -104,7 +104,11 @@ export default function Profile() {
           {/* Profile Header */}
           <div className="flex flex-col md:flex-row md:items-center gap-6">
             <Avatar className="w-24 h-24">
-              <AvatarImage src={profileUser.avatarUrl} />
+              <AvatarImage 
+                src={profileUser.avatarUrl?.startsWith('http') 
+                  ? profileUser.avatarUrl 
+                  : profileUser.avatarUrl ? `/uploads/images/${profileUser.avatarUrl.split('/').pop()}` : null} 
+              />
               <AvatarFallback>{profileUser.username.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
             
