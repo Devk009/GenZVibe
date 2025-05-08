@@ -107,7 +107,7 @@ export default function Profile() {
               <AvatarImage 
                 src={profileUser.avatarUrl?.startsWith('http') 
                   ? profileUser.avatarUrl 
-                  : profileUser.avatarUrl ? `/uploads/images/${profileUser.avatarUrl.split('/').pop()}` : null} 
+                  : profileUser.avatarUrl ? `/media/${profileUser.avatarUrl.split('/').pop()}` : null} 
               />
               <AvatarFallback>{profileUser.username.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
