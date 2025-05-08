@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -24,7 +25,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Upload, ImageIcon } from "lucide-react";
+import { X, Upload, ImageIcon, Video, Type } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface CreatePostModalProps {
   open: boolean;
@@ -33,8 +35,9 @@ interface CreatePostModalProps {
 
 const formSchema = z.object({
   caption: z.string().min(1, "Caption is required"),
-  imageUrl: z.string().url("Please enter a valid image URL"),
   location: z.string().optional(),
+  type: z.enum(["text", "image", "video"]),
+  media: z.instanceof(File).optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -43,20 +46,31 @@ const CreatePostModal = ({ open, onOpenChange }: CreatePostModalProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       caption: "",
-      imageUrl: "",
       location: "",
+      type: "text",
     },
   });
 
   const createPostMutation = useMutation({
     mutationFn: async (data: FormValues) => {
-      const response = await apiRequest("POST", "/api/posts", data);
+      const formData = new FormData();
+      formData.append("caption", data.caption);
+      if (data.location) formData.append("location", data.location);
+      formData.append("type", data.type);
+      if (data.media) formData.append("media", data.media);
+
+      const response = await fetch("/api/posts", {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!response.ok) throw new Error("Failed to create post");
       return response.json();
     },
     onSuccess: () => {
@@ -67,7 +81,7 @@ const CreatePostModal = ({ open, onOpenChange }: CreatePostModalProps) => {
       }
       
       form.reset();
-      setPreviewUrl(null);
+      setPreview(null);
       onOpenChange(false);
       
       toast({
@@ -84,6 +98,18 @@ const CreatePostModal = ({ open, onOpenChange }: CreatePostModalProps) => {
     },
   });
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    form.setValue("media", file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const onSubmit = (data: FormValues) => {
     if (!user) {
       toast({
@@ -97,18 +123,6 @@ const CreatePostModal = ({ open, onOpenChange }: CreatePostModalProps) => {
     createPostMutation.mutate(data);
   };
 
-  const handleImageUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const url = e.target.value;
-    form.setValue("imageUrl", url);
-    
-    // Update preview if it's a valid URL
-    if (url.match(/^https?:\/\/.+\..+/)) {
-      setPreviewUrl(url);
-    } else {
-      setPreviewUrl(null);
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -118,72 +132,153 @@ const CreatePostModal = ({ open, onOpenChange }: CreatePostModalProps) => {
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="imageUrl"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Image URL</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="https://example.com/image.jpg" 
-                      {...field} 
-                      onChange={handleImageUrlChange}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            {previewUrl ? (
-              <div className="relative aspect-square rounded-md overflow-hidden bg-gray-100 dark:bg-gray-800">
-                <img 
-                  src={previewUrl} 
-                  alt="Preview" 
-                  className="w-full h-full object-cover"
+            <Tabs defaultValue="text" onValueChange={(value) => form.setValue("type", value as "text" | "image" | "video")}>
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="text">
+                  <Type className="w-4 h-4 mr-2" />
+                  Text
+                </TabsTrigger>
+                <TabsTrigger value="image">
+                  <ImageIcon className="w-4 h-4 mr-2" />
+                  Image
+                </TabsTrigger>
+                <TabsTrigger value="video">
+                  <Video className="w-4 h-4 mr-2" />
+                  Video
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="text" className="pt-4">
+                <FormField
+                  control={form.control}
+                  name="caption"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Text Content</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="What's on your mind?" 
+                          className="resize-none min-h-[200px]"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-2 right-2 h-8 w-8 rounded-full"
-                  onClick={() => {
-                    form.setValue("imageUrl", "");
-                    setPreviewUrl(null);
-                  }}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
-              <div className="aspect-square rounded-md flex items-center justify-center bg-gray-100 dark:bg-gray-800 border-2 border-dashed border-gray-300 dark:border-gray-700">
-                <div className="text-center p-6">
-                  <ImageIcon className="h-10 w-10 mx-auto text-gray-400" />
-                  <p className="mt-2 text-sm text-gray-500">
-                    Enter an image URL above to preview
-                  </p>
-                </div>
-              </div>
-            )}
-            
-            <FormField
-              control={form.control}
-              name="caption"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Caption</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Write a caption..." 
-                      className="resize-none"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
+              </TabsContent>
+
+              <TabsContent value="image" className="pt-4">
+                <FormField
+                  control={form.control}
+                  name="media"
+                  render={() => (
+                    <FormItem>
+                      <FormLabel>Upload Image</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileChange}
+                          className="cursor-pointer"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {preview && (
+                  <div className="relative mt-4 aspect-square rounded-md overflow-hidden">
+                    <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 h-8 w-8 rounded-full"
+                      onClick={() => {
+                        form.setValue("media", undefined);
+                        setPreview(null);
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+                <FormField
+                  control={form.control}
+                  name="caption"
+                  render={({ field }) => (
+                    <FormItem className="mt-4">
+                      <FormLabel>Caption</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Write a caption..." 
+                          className="resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </TabsContent>
+
+              <TabsContent value="video" className="pt-4">
+                <FormField
+                  control={form.control}
+                  name="media"
+                  render={() => (
+                    <FormItem>
+                      <FormLabel>Upload Video</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="file"
+                          accept="video/*"
+                          onChange={handleFileChange}
+                          className="cursor-pointer"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {preview && (
+                  <div className="relative mt-4 aspect-video rounded-md overflow-hidden">
+                    <video src={preview} controls className="w-full h-full" />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 h-8 w-8 rounded-full"
+                      onClick={() => {
+                        form.setValue("media", undefined);
+                        setPreview(null);
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+                <FormField
+                  control={form.control}
+                  name="caption"
+                  render={({ field }) => (
+                    <FormItem className="mt-4">
+                      <FormLabel>Caption</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Write a caption..." 
+                          className="resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </TabsContent>
+            </Tabs>
+
             <FormField
               control={form.control}
               name="location"
