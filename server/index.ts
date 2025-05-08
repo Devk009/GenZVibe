@@ -37,6 +37,15 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Import storage and seed initial data if needed
+  const { storage } = await import("./storage");
+  try {
+    await storage.seedInitialData();
+    log("Initial data seeded successfully or database already has data");
+  } catch (error) {
+    console.error("Failed to seed initial data:", error);
+  }
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
