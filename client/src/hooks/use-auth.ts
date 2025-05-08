@@ -64,10 +64,15 @@ export const AuthProvider = (props: { children: React.ReactNode }) => {
   const login = async (username: string, password: string) => {
     setIsLoading(true);
     try {
+      const formData = form.getValues();
       const response = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ 
+          username, 
+          password,
+          remember: formData.remember
+        }),
         credentials: 'include',
       });
 
