@@ -17,8 +17,9 @@ export const posts = pgTable("posts", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
   caption: text("caption").notNull(),
-  type: text("type").notNull(), // 'text', 'image', or 'video'
-  mediaUrl: text("media_url"), // Optional for media content
+  postType: text("post_type").notNull().default("text"), // 'text', 'image', or 'video'
+  mediaPath: text("media_path"), // Path to stored media file
+  mediaType: text("media_type"), // MIME type for the media
   location: text("location"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
